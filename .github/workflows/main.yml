@@ -1,22 +1,37 @@
 name: Hourly Update
+
 on:
   schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:
+    - cron: '0 */6 * * *' # اجرای خودکار هر ۶ ساعت یک‌بار
+  workflow_dispatch:      # قابلیت اجرای دستی با دکمه Run workflow
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write     # اجازه برای ذخیره و آپدیت فایل sub_converted.txt
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
-      - run: pip install requests
-      - run: python fetch_configs.py
-      - name: Commit and Push
+          python-version: '3.10'
+
+      - name: Install Dependencies
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Run Fetch and Filter Script
+        run: python fetch_configs.py
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           git add sub_converted.txt
-          git commit -m "Update" || exit 0
+          git commit -m "Update sub_converted.txt with low-ping servers" || echo "No changes to commit"
           git push
