@@ -34,7 +34,7 @@ def tcp_ping(address, port):
     start_time = time.time()
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1.5) # زمان انتظار کوتاه برای فیلتر کردن سرورهای کند
+        sock.settimeout(1.5) 
         sock.connect((address, int(port)))
         sock.close()
         return int((time.time() - start_time) * 1000)
@@ -43,35 +43,35 @@ def tcp_ping(address, port):
 
 def process_config(config):
     try:
-        # استخراج آدرس و پورت
         match = re.search(r'@([^:/]+):(\d+)', config)
         if not match: return None
         
         address, port = match.group(1), match.group(2)
-        
-        # ۱. تست پینگ
         ping = tcp_ping(address, port)
         
-        # ۲. فیلتر سخت‌گیرانه (فقط زیر ۲۰۰ میلی‌ثانیه)
         if ping is None or ping > 200:
             return None
             
-        # ۳. دریافت پرچم
         flag = get_country_info(address)
-        
-        # ۴. حذف نام (Remark) قدیمی
         clean_config = config.split('#')[0]
+        
+        # تعیین کیفیت بر اساس پینگ
+        if ping < 150:
+            quality = "[Excellent]"
+        else:
+            quality = "[Good]"
         
         return {
             'config': clean_config,
             'ping': ping,
-            'flag': flag
+            'flag': flag,
+            'quality': quality
         }
     except:
         return None
 
 def main():
-    print("در حال استخراج سرورها...")
+    print("در حال استخراج و فیلتر کردن هوشمند...")
     raw_configs = set()
     for url in urls:
         try:
@@ -86,22 +86,20 @@ def main():
                     raw_configs.add(line.strip())
         except: pass
 
-    print(f"تعداد کل سرورهای خام: {len(raw_configs)}")
-
-    # تست موازی سرورها (۳۰ پردازش همزمان برای سرعت بیشتر)
+    # تست موازی با ۳۰ پردازش همزمان
     final_results = []
     with ThreadPoolExecutor(max_workers=30) as executor:
-        # بررسی ۲۰۰ سرور اول برای حفظ کیفیت و سرعت گیت‌هاب
         results = list(executor.map(process_config, list(raw_configs)[:200]))
         final_results = [r for r in results if r is not None]
 
-    # ۵. مرتب‌سازی: سریع‌ترین‌ها در ابتدای لیست
+    # مرتب‌سازی بر اساس پینگ
     final_results.sort(key=lambda x: x['ping'])
 
-    # ۶. ساخت فایل نهایی با فرمت درخواستی شما
+    # ساخت فایل نهایی با برچسب کیفیت
     output_configs = []
     for i, item in enumerate(final_results, 1):
-        new_name = f"{item['flag']} redline-crypto - {i}"
+        # فرمت نهایی: 🇮🇷 Excellent redline-crypto - 1 (120ms)
+        new_name = f"{item['flag']} {item['quality']} redline-crypto - {i} ({item['ping']}ms)"
         output_configs.append(f"{item['config']}#{new_name}")
 
     final_text = "\n".join(output_configs)
@@ -109,7 +107,7 @@ def main():
     
     with open('sub_converted.txt', 'w', encoding='utf-8') as f:
         f.write(encoded_final)
-    print("عملیات با موفقیت تمام شد. فایل آپدیت شد.")
+    print(f"به‌روزرسانی انجام شد. {len(output_configs)} سرور باکیفیت ذخیره شدند.")
 
 if __name__ == "__main__":
     main()
