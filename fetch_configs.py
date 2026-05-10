@@ -2,7 +2,7 @@ import requests
 import base64
 import os
 
-# لیست لینک‌های جمع‌کننده کانفیگ - می‌توانی هر زمان اینجا اضافه کنی
+# لیست لینک‌های جمع‌کننده کانفیگ
 urls = [
     'https://github.com/ALIILAPRO/v2rayNG-Config/raw/refs/heads/main/server.txt',
     'https://raw.githubusercontent.com/ALIILAPRO/v2rayNG-Config/refs/heads/main/server.txt',
@@ -408,7 +408,6 @@ urls = [
     'https://www.v2nodes.com/subscriptions/country/all/?key=E8FF7329C918147'
 ]
 
-# نام فایل‌های خروجی برای هر پروتکل
 OUTPUT_FILES = {
     'vless': 'vless.txt',
     'reality': 'reality.txt',
@@ -421,19 +420,15 @@ OUTPUT_FILES = {
 }
 
 def decode_if_base64(content):
-    """اگر محتوا Base64 باشد رمزگشایی می‌کند، در غیر این صورت خودش را برمی‌گرداند."""
     try:
         return base64.b64decode(content).decode('utf-8', errors='ignore')
     except:
         return content
 
 def extract_configs_from_line(line):
-    """یک خط را بررسی و نوع پروتکل آن را تشخیص می‌دهد."""
     line = line.strip()
     if not line:
         return None, None
-
-    # VLESS (با یا بدون Reality)
     if line.startswith('vless://'):
         if 'security=reality' in line:
             return 'reality', line
@@ -453,10 +448,8 @@ def extract_configs_from_line(line):
     return None, None
 
 def main():
-    # دیکشنری‌ای از مجموعه‌ها برای هر پروتکل
     configs_by_protocol = {key: set() for key in OUTPUT_FILES.keys()}
 
-    # ۱. خواندن و دسته‌بندی
     for url in urls:
         try:
             print(f"Fetching: {url}")
@@ -472,11 +465,9 @@ def main():
         except Exception as e:
             print(f"   ❌ Failed: {url} - {e}")
 
-    # ۲. ذخیره‌سازی فایل‌های خروجی
     for protocol, configs in configs_by_protocol.items():
         if configs:
             text = "\n".join(sorted(configs))
-            # رمزنگاری Base64 برای سازگاری با V2RayNG
             encoded_text = base64.b64encode(text.encode('utf-8')).decode('utf-8')
             filename = OUTPUT_FILES[protocol]
             with open(filename, 'w', encoding='utf-8') as f:
@@ -484,17 +475,6 @@ def main():
             print(f"✅ {filename}: {len(configs)} configs saved.")
         else:
             print(f"⚠️ {OUTPUT_FILES[protocol]}: no configs found.")
-
-    # ۳. (اختیاری) ساخت فایل کلی برای سازگاری با گذشته
-    all_configs = set()
-    for configs in configs_by_protocol.values():
-        all_configs.update(configs)
-    if all_configs:
-        text = "\n".join(sorted(all_configs))
-        encoded_text = base64.b64encode(text.encode('utf-8')).decode('utf-8')
-        with open('sub_converted.txt', 'w', encoding='utf-8') as f:
-            f.write(encoded_text)
-        print(f"✅ sub_converted.txt: {len(all_configs)} total configs.")
 
 if __name__ == "__main__":
     main()
