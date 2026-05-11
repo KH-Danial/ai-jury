@@ -1,20 +1,11 @@
-#!/usr/bin/env python3
 import requests
 import base64
 import os
-import time
-import json
-import socket
-import random
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Set, Tuple, Optional
-from urllib.parse import urlparse
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 
 # ============================================================
-# لیست لینک‌های جمع‌کننده کانفیگ
+# لیست لینک‌های جمع‌کننده کانفیگ 
 # ============================================================
+
 urls = [
     'https://github.com/ALIILAPRO/v2rayNG-Config/raw/refs/heads/main/server.txt',
     'https://raw.githubusercontent.com/ALIILAPRO/v2rayNG-Config/refs/heads/main/server.txt',
@@ -431,16 +422,13 @@ OUTPUT_FILES = {
     'wireguard': 'wireguard.txt'
 }
 
-# ------------------------------------------------------------
-# توابع کمکی
-# ------------------------------------------------------------
-def decode_if_base64(content: str) -> str:
+def decode_if_base64(content):
     try:
         return base64.b64decode(content).decode('utf-8', errors='ignore')
     except:
         return content
 
-def extract_configs_from_line(line: str) -> Tuple[Optional[str], Optional[str]]:
+def extract_configs_from_line(line):
     line = line.strip()
     if not line:
         return None, None
@@ -462,173 +450,34 @@ def extract_configs_from_line(line: str) -> Tuple[Optional[str], Optional[str]]:
         return 'wireguard', line
     return None, None
 
-def get_host_port_from_config(protocol: str, config: str) -> Tuple[Optional[str], Optional[int]]:
-    """استخراج host و port برای تست سلامت (فقط پروتکل‌های TCP)"""
-    try:
-        if protocol in ('vless', 'reality', 'trojan'):
-            parsed = urlparse(config)
-            return parsed.hostname, parsed.port
-        elif protocol == 'vmess':
-            import json
-            encoded = config[8:]  # remove 'vmess://'
-            decoded = base64.b64decode(encoded).decode('utf-8', errors='ignore')
-            data = json.loads(decoded)
-            return data.get('add'), data.get('port')
-        elif protocol == 'socks':
-            parsed = urlparse(config)
-            return parsed.hostname, parsed.port
-        elif protocol == 'shadowsocks':
-            if '@' in config:
-                after_at = config.split('@')[1].split('#')[0]
-                host, port = after_at.split(':')
-                return host, int(port)
-            else:
-                encoded = config[5:].split('#')[0]
-                decoded = base64.b64decode(encoded).decode('utf-8', errors='ignore')
-                if '@' in decoded:
-                    host_port = decoded.split('@')[1]
-                    host, port = host_port.split(':')
-                    return host, int(port)
-        else:
-            return None, None
-    except:
-        return None, None
-    return None, None
-
-def tcp_ping(host: str, port: int, timeout: float = 1.0) -> bool:
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(timeout)
-        sock.connect((host, port))
-        sock.close()
-        return True
-    except:
-        return False
-
-# ------------------------------------------------------------
-# دریافت با قابلیت Retry و Timeout پیشرفته
-# ------------------------------------------------------------
-def fetch_url_with_retry(url: str, max_retries: int = 2, timeout: Tuple[int, int] = (10, 25)) -> Tuple[str, List[str]]:
-    """
-    دریافت محتویات URL با مکانیزم تلاش مجدد خودکار.
-    timeout: (connect_timeout, read_timeout)
-    """
-    session = requests.Session()
-    retries = Retry(
-        total=max_retries,
-        backoff_factor=0.5,
-        status_forcelist=[500, 502, 503, 504],
-        allowed_methods=["GET"]
-    )
-    adapter = HTTPAdapter(max_retries=retries)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
-    
-    try:
-        resp = session.get(url, timeout=timeout)
-        if resp.status_code == 200:
-            decoded = decode_if_base64(resp.text.strip())
-            lines = [line.strip() for line in decoded.splitlines() if line.strip()]
-            return url, lines
-        else:
-            print(f"   ⚠️ {url} returned {resp.status_code}")
-            return url, []
-    except Exception as e:
-        print(f"   ❌ Failed after retries: {url} - {e}")
-        return url, []
-
-# ------------------------------------------------------------
-# اجرای موازی
-# ------------------------------------------------------------
-def fetch_all_parallel(urls: List[str], max_workers: int = 8) -> Dict[str, List[str]]:
-    results = {}
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_url = {executor.submit(fetch_url_with_retry, url): url for url in urls}
-        for future in as_completed(future_to_url):
-            url, lines = future.result()
-            results[url] = lines
-            print(f"   ✅ {url} -> {len(lines)} lines")
-    return results
-
-# ------------------------------------------------------------
-# تست سلامت نمونه‌گیری (اختیاری – فقط آمار)
-# ------------------------------------------------------------
-def sample_health_check(configs: Set[str], protocol: str, sample_size: int = 300) -> dict:
-    if protocol in ('hysteria2', 'wireguard'):
-        return {'sampled': 0, 'alive': 0, 'percent': 0}
-    config_list = list(configs)
-    if len(config_list) <= sample_size:
-        sample = config_list
-    else:
-        sample = random.sample(config_list, sample_size)
-    alive = 0
-    for cfg in sample:
-        host, port = get_host_port_from_config(protocol, cfg)
-        if host and port and tcp_ping(host, port, timeout=1.0):
-            alive += 1
-    return {'sampled': len(sample), 'alive': alive, 'percent': (alive/len(sample))*100 if sample else 0}
-
-# ------------------------------------------------------------
-# تابع اصلی
-# ------------------------------------------------------------
 def main():
-    print("🚀 Starting fetch with retry, parallel, health stats...")
-    start_total = time.perf_counter()
-    
-    # مرحله 1: دریافت موازی با retry
-    print("📡 Fetching from all sources concurrently (with retry)...")
-    url_to_lines = fetch_all_parallel(urls, max_workers=8)
-    
-    # مرحله 2: دسته‌بندی
-    configs_by_protocol: Dict[str, Set[str]] = {key: set() for key in OUTPUT_FILES.keys()}
-    for url, lines in url_to_lines.items():
-        for line in lines:
-            proto, cfg = extract_configs_from_line(line)
-            if proto and cfg:
-                configs_by_protocol[proto].add(cfg)
-    
-    # مرحله 3: آمار و تست سلامت نمونه‌گیری
-    stats = {}
-    print("\n🩺 Running health check sampling...")
-    for proto, cfg_set in configs_by_protocol.items():
-        raw_count = len(cfg_set)
-        health = sample_health_check(cfg_set, proto, sample_size=300)
-        stats[proto] = {
-            'raw_count': raw_count,
-            'final_count': raw_count,   # در این نسخه حذف واقعی نمی‌کنیم
-            'health_sample': health
-        }
-        print(f"   {proto}: total={raw_count:,}, sample={health['sampled']}, alive={health['alive']} ({health['percent']:.1f}%)")
-    
-    # مرحله 4: ذخیره فایل‌های نهایی (Base64)
-    for proto, cfg_set in configs_by_protocol.items():
-        if cfg_set:
-            text = "\n".join(sorted(cfg_set))
-            encoded = base64.b64encode(text.encode('utf-8')).decode('utf-8')
-            filename = OUTPUT_FILES[proto]
+    configs_by_protocol = {key: set() for key in OUTPUT_FILES.keys()}
+
+    for url in urls:
+        try:
+            print(f"Fetching: {url}")
+            resp = requests.get(url, timeout=15)
+            if resp.status_code == 200:
+                decoded_data = decode_if_base64(resp.text.strip())
+                for line in decoded_data.splitlines():
+                    proto, config_line = extract_configs_from_line(line)
+                    if proto:
+                        configs_by_protocol[proto].add(config_line)
+            else:
+                print(f"   ⚠️ {url} returned {resp.status_code}")
+        except Exception as e:
+            print(f"   ❌ Failed: {url} - {e}")
+
+    for protocol, configs in configs_by_protocol.items():
+        if configs:
+            text = "\n".join(sorted(configs))
+            encoded_text = base64.b64encode(text.encode('utf-8')).decode('utf-8')
+            filename = OUTPUT_FILES[protocol]
             with open(filename, 'w', encoding='utf-8') as f:
-                f.write(encoded)
-            print(f"✅ {filename}: {len(cfg_set)} configs saved.")
+                f.write(encoded_text)
+            print(f"✅ {filename}: {len(configs)} configs saved.")
         else:
-            print(f"⚠️ {OUTPUT_FILES[proto]}: no configs found.")
-    
-    # مرحله 5: ذخیره آمار در stats.json
-    total_configs = sum(stats[p]['final_count'] for p in stats)
-    summary = {
-        'total_configs': total_configs,
-        'total_sources': len(urls),
-        'execution_time_sec': time.perf_counter() - start_total,
-        'timestamp': time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime()),
-        'successful_sources': len([u for u, lines in url_to_lines.items() if lines]),
-        'failed_sources': len([u for u, lines in url_to_lines.items() if not lines])
-    }
-    stats['summary'] = summary
-    with open('stats.json', 'w', encoding='utf-8') as f:
-        json.dump(stats, f, indent=2)
-    print(f"\n📊 Stats saved to stats.json")
-    print(f"   Total configs: {total_configs:,}")
-    print(f"   Execution time: {summary['execution_time_sec']:.2f}s")
-    print(f"   Successful sources: {summary['successful_sources']} / {summary['total_sources']}")
+            print(f"⚠️ {OUTPUT_FILES[protocol]}: no configs found.")
 
 if __name__ == "__main__":
     main()
