@@ -5,15 +5,9 @@ on:
     - cron: '0 */6 * * *'   # هر ۶ ساعت یکبار
   workflow_dispatch:         # قابلیت اجرای دستی
 
-# فقط یک نمونه از workflow در حال اجرا باشد
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 12      # حداکثر زمان اجرا ۱۲ دقیقه (پیشگیری از قفل شدن)
     permissions:
       contents: write
 
@@ -27,9 +21,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install Dependencies
-        run: |
-          pip install --upgrade pip
-          pip install requests urllib3
+        run: pip install requests
 
       - name: Run Fetch and Filter Script
         run: python fetch_configs.py
@@ -41,6 +33,6 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add *.txt stats.json
+          git add *.txt
           git diff --staged --quiet || git commit -m "Update all config files (deduplicated)"
           git push
