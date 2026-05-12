@@ -18,8 +18,8 @@ prompt = f"{title}\n\n{body}"
 models = [
     "gpt-4o-mini",
     "cohere/cohere-command-r-08-2024",
-    "deepseek-ai/DeepSeek-R1",   # در صورت خطا، نامش را اصلاح می‌کنیم
-    "mistral-nemo"               # جانشین قدرتمند برای Gemini
+    "MAI-DS-R1",           # DeepSeek-R1 微软优化版
+    "Mistral-small-2503"   # Mistral 官方推荐的 Nemo 替代品
 ]
 
 forced_prompt = f"""⚠️ دستور: شما باید فقط به زبان فارسی پاسخ دهید. حق استفاده از هیچ زبان دیگری را ندارید.
