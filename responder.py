@@ -22,7 +22,7 @@ if match:
 
 prompt = f"{title}\n\n{body}"
 
-# ۳. تحلیل عکس با مدل بینایی و ترجمه اجباری آن به فارسی
+# ۳. تحلیل عکس با مدل بینایی (gpt-4o-mini) و ترجمه آن به فارسی
 vision_answer = ""
 if image_url:
     # تمیز کردن URL
@@ -51,7 +51,7 @@ if image_url:
         if prompt and prompt.strip():
             english_prompt = f"The user asked this (translate if needed): '{prompt}'\n\n{english_prompt}"
 
-        # تلاش برای دریافت تحلیل
+        # تلاش برای دریافت تحلیل از gpt-4o-mini
         raw_vision_result = ""
         success = False
         for attempt in range(3):
@@ -62,7 +62,7 @@ if image_url:
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "meta/llama-3.2-11b-vision-instruct",
+                    "model": "gpt-4o-mini",  # <--- تغییر اصلی اینجاست
                     "messages": [
                         {
                             "role": "user",
@@ -86,7 +86,7 @@ if image_url:
                 break
 
         if success and raw_vision_result:
-            # **تغییر ۱: ترجمه خودکار تحلیل انگلیسی به فارسی**
+            # ترجمه خودکار تحلیل انگلیسی به فارسی
             translate_prompt = f"""دستور: شما باید فقط به زبان فارسی پاسخ دهید. متن انگلیسی زیر را دقیقاً به فارسی ترجمه کن. تمام اعداد، تاریخ‌ها و جزئیات فنی باید عیناً حفظ شوند. فقط ترجمه را بنویس و هیچ توضیح اضافه نده.
 
 English Text:
@@ -108,10 +108,8 @@ English Text:
                 persian_vision = translate_response.json()["choices"][0]["message"]["content"]
                 vision_answer = f"**👁️ تحلیل تصویر:**\n{persian_vision}\n"
             else:
-                # اگر ترجمه خطا داد، حداقل تحلیل انگلیسی را با برچسب فارسی نمایش بده
                 vision_answer = f"**👁️ تحلیل تصویر (ترجمه خودکار):**\n{raw_vision_result}\n"
     else:
-        # اگر دانلود تصویر ناموفق بود، vision_answer در بلوک try قبلی تنظیم شده است
         pass
 
 # ۴. مدل‌های هیئت منصفه (متخصصان متن)
@@ -120,10 +118,9 @@ models = [
     "cohere/cohere-command-r-08-2024"
 ]
 
-# **تغییر ۲: تزریق تحلیل فارسی تصویر به پرامپت متخصصان**
+# تزریق تحلیل فارسی تصویر به پرامپت متخصصان
 base_prompt = f"سوال کاربر: {prompt}"
 if vision_answer:
-    # استخراج متن خالص از vision_answer
     vision_text = vision_answer.replace("**👁️ تحلیل تصویر:**\n", "").replace("\n", " ")
     base_prompt = f"تحلیل دقیق تصویر توسط یک مدل بینایی:\n{vision_text}\n\n{base_prompt}"
 
@@ -160,7 +157,6 @@ if vision_answer:
     all_answers.append(vision_answer)
 all_answers.extend(answers)
 
-# **تغییر ۳: اولویت دادن به تحلیل تصویر در پرامپت قاضی**
 jury_prompt = f"""سوال کاربر: {prompt}
 
 تحلیل تصویر (که توسط یک مدل بینایی دقیق انجام شده و معتبر است):
