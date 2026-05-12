@@ -1,4 +1,4 @@
-import os, json, requests, re
+import os, json, requests, re, base64, time
 from urllib.parse import quote, unquote
 
 GITHUB_TOKEN = os.environ["GH_TOKEN"]
@@ -20,54 +20,84 @@ if match:
     image_url = match.group(1)
     body = re.sub(r'image:\s*https?://[^\s]+\n?', '', body).strip()
 
-# ساخت پرامپت اولیه
 prompt = f"{title}\n\n{body}"
 
 # ۳. تحلیل عکس با مدل بینایی (در صورت وجود)
 vision_answer = ""
 if image_url:
-    # تمیز کردن URL برای جلوگیری از خطای ۵۰۰
+    # تمیز کردن URL
     try:
         unquoted_url = unquote(image_url)
         safe_url = quote(unquoted_url, safe=':/?&=')
     except:
         safe_url = image_url
 
-    print(f"DEBUG: Processing Image URL: {safe_url}")
+    # 🆕 دانلود تصویر و تبدیل به base64 (دور زدن خطای ۵۰۰ ناشی از URL)
+    try:
+        img_response = requests.get(safe_url, timeout=15)
+        if img_response.status_code == 200:
+            img_base64 = base64.b64encode(img_response.content).decode('utf-8')
+            # حدس زدن نوع تصویر (فرض jpeg؛ در صورت نیاز می‌توان تشخیص خودکار اضافه کرد)
+            data_uri = f"data:image/jpeg;base64,{img_base64}"
+        else:
+            data_uri = None
+            vision_answer = f"**👁️ تحلیل تصویر:** خطا در دانلود تصویر (کد {img_response.status_code})\n"
+    except Exception as e:
+        data_uri = None
+        vision_answer = f"**👁️ تحلیل تصویر:** خطا در دانلود تصویر: {str(e)[:100]}\n"
 
-    vision_response = requests.post(
-        "https://models.github.ai/inference/chat/completions",
-        headers={
-            "Authorization": f"Bearer {GITHUB_TOKEN}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": "Llama-3.2-11B-Vision-Instruct",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt if prompt else "این تصویر را تحلیل کن و هر داده، روند یا نکته مهمی که در آن می‌بینی را به فارسی توضیح بده."},
-                        {"type": "image_url", "image_url": {"url": safe_url}}
-                    ]
+    if data_uri:
+        # 🆕 پرامپت انگلیسی برای مدل بینایی (چون Llama Vision فقط انگلیسی پشتیبانی می‌کند)
+        english_prompt = f"Analyze this image carefully. Describe any data, trends, charts, text, or important details you see. Provide a thorough analysis in English."
+        if prompt and prompt.strip():
+            english_prompt = f"The user asked this (translate if needed): '{prompt}'\n\n{english_prompt}"
+
+        for attempt in range(3):  # تلاش مجدد با backoff
+            vision_response = requests.post(
+                "https://models.github.ai/inference/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {GITHUB_TOKEN}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "meta/llama-3.2-11b-vision-instruct",  # 🆕 شناسه صحیح
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": english_prompt},
+                                {"type": "image_url", "image_url": {"url": data_uri}}
+                            ]
+                        }
+                    ],
+                    "max_tokens": 500
                 }
-            ],
-            "max_tokens": 500
-        }
-    )
-    if vision_response.status_code == 200:
-        vision_answer = f"**👁️ تحلیل تصویر:**\n{vision_response.json()['choices'][0]['message']['content']}\n"
-    else:
-        vision_answer = f"**👁️ تحلیل تصویر:** خطا {vision_response.status_code}\n"
+            )
+            if vision_response.status_code == 200:
+                vision_english = vision_response.json()["choices"][0]["message"]["content"]
+                vision_answer = f"**👁️ تحلیل تصویر:**\n{vision_english}\n"
+                break
+            elif vision_response.status_code == 500:
+                time.sleep(2 ** attempt)  # منتظر می‌ماند: 1s, 2s, 4s
+            else:
+                vision_answer = f"**👁️ تحلیل تصویر:** خطا {vision_response.status_code}\n"
+                break
 
 # ۴. مدل‌های هیئت منصفه (متخصصان متن) با پرامپت اجباری فارسی
 models = [
     "gpt-4o-mini",
-    "cohere/cohere-command-r-08-2024"
+    "cohere/cohere-command-r-08-2024"  # 🆕 شناسه صحیح Cohere
 ]
 
-# پرامپت قوی برای وادار کردن مدل‌ها به پاسخ فارسی
-forced_prompt = f"دستور: شما باید فقط به زبان فارسی پاسخ دهید. اگر سوال به زبان دیگری است، آن را ترجمه کنید و پاسخ را فارسی بنویسید.\n\nسوال: {prompt}"
+# 🆕 پرامپت بسیار قوی‌تر برای وادار کردن مدل‌ها به پاسخ فارسی
+forced_prompt = f"""⚠️ IMPORTANT INSTRUCTION: You MUST respond ONLY in Persian (Farsi) language.
+You are NOT allowed to respond in English or any other language.
+If the user's question contains non-Persian text, translate it and respond in Persian.
+DO NOT mention that you can only speak English. DO NOT apologize for language limitations.
+Just respond in Persian directly.
+
+User question:
+{prompt}"""
 
 answers = []
 
@@ -96,7 +126,7 @@ if vision_answer:
     all_answers.append(vision_answer)
 all_answers.extend(answers)
 
-jury_prompt = f"سوال کاربر: {prompt}\n\nپاسخ‌های متخصصان:\n" + "\n".join(all_answers) + "\n\nبا توجه به پاسخ‌های بالا، یک پاسخ نهایی جامع و دقیق به فارسی بنویس. اگر پاسخ‌ها متناقض بودند، بهترین نظر را انتخاب کن."
+jury_prompt = f"سوال کاربر: {prompt}\n\nپاسخ‌های متخصصان:\n" + "\n".join(all_answers) + "\n\nبا توجه به پاسخ‌های بالا، یک پاسخ نهایی جامع و دقیق به فارسی بنویس. اگر پاسخ‌ها متناقض بودند، بهترین نظر را انتخاب کن. اگر پاسخی به انگلیسی است، آن را ترجمه کن."
 
 final_response = requests.post(
     "https://models.github.ai/inference/chat/completions",
