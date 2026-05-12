@@ -8,9 +8,37 @@ GITHUB_TOKEN = os.environ["GH_TOKEN"]
 def fetch_market_data(symbol="BTC"):
     """
     دریافت قیمت و حجم معاملات ۲۴ ساعته یک ارز دیجیتال بر اساس نماد آن.
-    از API عمومی و رایگان CoinLore استفاده می‌کند که نیازی به کلید API ندارد.
+    از BrsApi (ایرانی، رایگان) به عنوان منبع اصلی و CoinLore به عنوان پشتیبان استفاده می‌کند.
     """
     data = {"price_usd": "N/A", "volume_24h": "N/A", "source": "Unknown"}
+    
+    # --- تلاش اول: BrsApi (نیاز به API Key دارد) ---
+    brs_key = os.environ.get("BRSAPI_KEY", "")
+    if brs_key:
+        try:
+            url = f"https://Api.BrsApi.ir/Market/Cryptocurrency.php?key={brs_key}&symbol={symbol.upper()}"
+            resp = requests.get(url, timeout=10)
+            if resp.status_code == 200:
+                d = resp.json()
+                # BrsApi خروجی متفاوتی دارد؛ تلاش می‌کنیم داده‌ها را استخراج کنیم
+                if isinstance(d, dict):
+                    price = d.get("price") or d.get("price_usd") or d.get("Price")
+                    volume = d.get("volume_24h") or d.get("volume") or d.get("Volume")
+                    if price:
+                        data["price_usd"] = price
+                        data["volume_24h"] = volume if volume else "N/A"
+                        data["source"] = "BrsApi"
+                        return data
+                elif isinstance(d, list) and len(d) > 0:
+                    coin = d[0]
+                    data["price_usd"] = coin.get("price", coin.get("price_usd", "N/A"))
+                    data["volume_24h"] = coin.get("volume_24h", coin.get("volume", "N/A"))
+                    data["source"] = "BrsApi"
+                    return data
+        except Exception as e:
+            print(f"BrsApi failed for {symbol}: {e}")
+    
+    # --- تلاش دوم: CoinLore (بدون نیاز به API Key) ---
     try:
         url = f"https://api.coinlore.net/api/ticker/?id={symbol.upper()}"
         resp = requests.get(url, timeout=10)
@@ -23,7 +51,8 @@ def fetch_market_data(symbol="BTC"):
                 data["source"] = "CoinLore"
                 return data
     except Exception as e:
-        print(f"CoinLore API failed for {symbol}: {e}")
+        print(f"CoinLore also failed for {symbol}: {e}")
+        
     return data
 
 # ------------------------------------------------------------
