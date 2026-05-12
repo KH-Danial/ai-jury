@@ -32,7 +32,7 @@ if image_url:
             "Content-Type": "application/json"
         },
         json={
-            "model": "meta-llama/Llama-3.2-11B-Vision-Instruct",
+            "model": "Llama-3.2-11B-Vision-Instruct",
             "messages": [
                 {
                     "role": "user",
