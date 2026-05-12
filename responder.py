@@ -14,10 +14,10 @@ repo = os.environ["GITHUB_REPOSITORY"]
 
 prompt = f"{title}\n\n{body}"
 
-# ۲. مدل‌های هیئت منصفه
+# ۲. مدل‌های هیئت منصفه (دو متخصص متفاوت)
 models = [
-    "gpt-4o-mini",
-    "Meta-Llama-3.1-8B-Instruct"
+    "gpt-4o-mini",            # متخصص همه‌فن‌حریف
+    "ai21-jamba-1.5-mini"     # متخصص خلاق و سریع
 ]
 
 answers = []
@@ -41,7 +41,7 @@ for model in models:
     else:
         answers.append(f"**{model}:** خطا {response.status_code}")
 
-# ۳. مدل قاضی برای جمع‌بندی
+# ۳. مدل قاضی برای جمع‌بندی (از gpt-4o-mini به عنوان قاضی استفاده می‌کنیم)
 jury_prompt = f"سوال کاربر: {prompt}\n\nپاسخ‌های متخصصان:\n" + "\n".join(answers) + "\n\nبا توجه به پاسخ‌های بالا، یک پاسخ نهایی جامع و دقیق به فارسی بنویس."
 
 final_response = requests.post(
@@ -51,7 +51,7 @@ final_response = requests.post(
         "Content-Type": "application/json"
     },
     json={
-        "model": "phi-4",
+        "model": "gpt-4o-mini",  # قاضی
         "messages": [{"role": "user", "content": jury_prompt}],
         "max_tokens": 800
     }
