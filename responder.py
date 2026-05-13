@@ -1,4 +1,4 @@
-import os, json, requests, re
+import os, json, requests, re, time
 from config import API_BASE_URL, SECRET_NAME
 from tsetmc import API_ENDPOINTS as BOURSE_ENDPOINTS, FIELD_MAPS as BOURSE_FIELDS
 from Commodity import API_ENDPOINTS as COMMODITY_ENDPOINTS, FIELD_MAPS as COMMODITY_FIELDS
@@ -23,7 +23,7 @@ prompt = f"{title}\n\n{body}"
 combined_text = title + " " + body
 
 # ═══════════════════════════════════════════════════════════════
-# ۲. تشخیص بازار و دریافت داده واقعی
+# ۲. ابزارهای کمکی: تشخیص بازار و فراخوانی API
 # ═══════════════════════════════════════════════════════════════
 def detect_market(text):
     """تشخیص می‌دهد سوال کاربر مربوط به کدام بازار است"""
@@ -38,18 +38,32 @@ def detect_market(text):
     return None
 
 def call_api(endpoint_path, params_dict):
-    """فراخوانی APIهای BrsApi و برگرداندن JSON"""
+    """فراخوانی APIهای BrsApi با هدر شبیه‌سازی‌شده مرورگر"""
     if not BRSAPI_KEY:
+        print("DEBUG: BRSAPI_KEY is empty")
         return None
     try:
         url = f"{API_BASE_URL}{endpoint_path}"
         params_dict["key"] = BRSAPI_KEY
-        resp = requests.get(url, params=params_dict, timeout=10)
+
+        # 🆕 اضافه کردن هدرهایی که یک مرورگر واقعی را شبیه‌سازی می‌کنند
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*"
+        }
+
+        print(f"DEBUG: Calling {url} with params: {params_dict}")
+        resp = requests.get(url, params=params_dict, headers=headers, timeout=15)
+        print(f"DEBUG: Response status: {resp.status_code}")
+
         if resp.status_code == 200:
             return resp.json()
+        else:
+            print(f"DEBUG: Response body: {resp.text[:200]}")
+            return None
     except Exception as e:
-        print(f"API error: {e}")
-    return None
+        print(f"DEBUG: API call failed for {endpoint_path}: {str(e)}")
+        return None
 
 def get_bourse_data(text):
     """دریافت داده‌های بورس بر اساس سوال"""
