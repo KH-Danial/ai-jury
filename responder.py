@@ -23,8 +23,17 @@ prompt = f"{title}\n\n{body}"
 combined_text = title + " " + body
 
 # ═══════════════════════════════════════════════════════════════
-# ۲. تشخیص بازار و فراخوانی API (نسخه اصلاح‌شده)
+# ۲. تشخیص بازار و فراخوانی API (با Debug کامل)
 # ═══════════════════════════════════════════════════════════════
+
+# آرایه‌ای برای جمع‌آوری پیام‌های debug
+debug_logs = []
+
+def log(msg):
+    """ثبت پیام debug برای نمایش در کامنت نهایی"""
+    debug_logs.append(msg)
+    print(f"DEBUG: {msg}")
+
 def detect_market(text):
     if any(kw in text for kw in ["بورس", "سهام", "شاخص", "فرابورس", "فملی", "اهرم", "آپشن"]):
         return "borse"
@@ -39,13 +48,12 @@ def detect_market(text):
 def call_api(endpoint_name, extra_params=None):
     """
     فراخوانی APIهای BrsApi فقط با پارامترهای معتبر.
-    دیگر هیچ پارامتر اضافه‌ای (مثل type) به APIهای غیر بورس ارسال نمی‌شود.
     """
     if not BRSAPI_KEY:
-        print("DEBUG: BRSAPI_KEY is empty")
+        log("❌ BRSAPI_KEY خالی است — Secret در گیت‌هاب تنظیم نشده!")
         return None
 
-    # پیدا کردن اطلاعات endpoint از بین همه ماژول‌ها
+    # پیدا کردن اطلاعات endpoint
     all_endpoints = {}
     all_endpoints.update(BOURSE_ENDPOINTS)
     all_endpoints.update(COMMODITY_ENDPOINTS)
@@ -54,10 +62,10 @@ def call_api(endpoint_name, extra_params=None):
 
     endpoint_info = all_endpoints.get(endpoint_name)
     if not endpoint_info:
-        print(f"DEBUG: Endpoint '{endpoint_name}' not found")
+        log(f"❌ Endpoint '{endpoint_name}' پیدا نشد")
         return None
 
-    # 🆕 ساخت پارامترها فقط بر اساس params مجاز هر سرویس
+    # ساخت پارامترها فقط بر اساس params مجاز
     final_params = {"key": BRSAPI_KEY}
     valid_params = endpoint_info.get("params", [])
 
@@ -66,7 +74,7 @@ def call_api(endpoint_name, extra_params=None):
             if k in valid_params:
                 final_params[k] = v
             else:
-                print(f"DEBUG: Ignoring invalid param '{k}' for endpoint '{endpoint_name}'")
+                log(f"⚠️ پارامتر نامعتبر '{k}' برای '{endpoint_name}' نادیده گرفته شد")
 
     try:
         url = f"{API_BASE_URL}{endpoint_info['path']}"
@@ -75,17 +83,21 @@ def call_api(endpoint_name, extra_params=None):
             "Accept": "application/json, text/plain, */*"
         }
 
-        print(f"DEBUG: Calling {url} with params: {final_params}")
+        log(f"📡 فراخوانی: {url}")
+        log(f"📋 پارامترها: {final_params}")
+
         resp = requests.get(url, params=final_params, headers=headers, timeout=15)
-        print(f"DEBUG: Response status: {resp.status_code}")
+        log(f"📊 کد وضعیت: {resp.status_code}")
 
         if resp.status_code == 200:
-            return resp.json()
+            data = resp.json()
+            log(f"✅ داده دریافت شد (طول: {len(str(data))} کاراکتر)")
+            return data
         else:
-            print(f"DEBUG: Response body: {resp.text[:200]}")
+            log(f"❌ خطا: {resp.status_code} — {resp.text[:150]}")
             return None
     except Exception as e:
-        print(f"DEBUG: API call failed for {endpoint_name}: {str(e)}")
+        log(f"❌ استثنا: {str(e)[:200]}")
         return None
 
 def get_bourse_data(text):
@@ -125,6 +137,7 @@ def get_crypto_data(text):
 
 def get_gold_data(text):
     result = []
+    # 🆕 ارسال section=gold,currency برای دریافت فقط طلا و ارز (نه رمزارز)
     data = call_api("gold_currency_pro", {"section": "gold,currency"})
     if data:
         result.append(("طلا و ارز", data, "gold_currency_pro"))
@@ -133,7 +146,10 @@ def get_gold_data(text):
 def enrich_prompt(original_prompt, combined_text):
     market = detect_market(combined_text)
     if not market:
+        log("🔍 بازار تشخیص داده نشد — پرامپت بدون داده باقی ماند")
         return original_prompt
+    
+    log(f"🔍 بازار تشخیص داده شده: {market}")
     
     all_data = []
     if market == "borse":
@@ -146,7 +162,10 @@ def enrich_prompt(original_prompt, combined_text):
         all_data = get_gold_data(combined_text)
     
     if not all_data:
+        log("⚠️ هیچ داده‌ای از API دریافت نشد — پرامپت غنی‌سازی نشد")
         return original_prompt
+    
+    log(f"✅ {len(all_data)} دسته داده دریافت شد")
     
     lines = ["\n\n📊 داده‌های واقعی بازار:\n"]
     for label, data, field_key in all_data:
@@ -203,7 +222,7 @@ for model in general_models:
         answers.append(f"**{model['id']}**: خطا {response.status_code}")
 
 # ═══════════════════════════════════════════════════════════════
-# ۴. قاضی و کامنت نهایی
+# ۴. قاضی و کامنت نهایی (همراه با Debug Log)
 # ═══════════════════════════════════════════════════════════════
 judge_prompt = f"سوال کاربر: {prompt}\n\nپاسخ‌های متخصصان:\n" + "\n".join(answers) + "\n\nبا توجه به پاسخ‌های بالا، یک پاسخ نهایی جامع و دقیق به فارسی بنویس."
 
@@ -214,7 +233,12 @@ judge_response = requests.post(
 )
 final_answer = judge_response.json()["choices"][0]["message"]["content"] if judge_response.status_code == 200 else f"خطا: {judge_response.status_code}"
 
-comment_body = f"## 🏛️ هیئت منصفه هوش مصنوعی\n\n### 📣 پاسخ‌ها:\n" + "\n---\n".join(answers) + f"\n---\n### ⚖️ پاسخ نهایی:\n{final_answer}"
+# 🆕 اضافه کردن Debug Log به کامنت
+debug_section = ""
+if debug_logs:
+    debug_section = "\n\n---\n### 🔍 گزارش فنی (Debug):\n" + "\n".join(f"- {l}" for l in debug_logs)
+
+comment_body = f"## 🏛️ هیئت منصفه هوش مصنوعی\n\n### 📣 پاسخ‌ها:\n" + "\n---\n".join(answers) + f"\n---\n### ⚖️ پاسخ نهایی:\n{final_answer}{debug_section}"
 
 requests.post(
     f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments",
