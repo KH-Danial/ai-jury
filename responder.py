@@ -14,7 +14,7 @@ repo = os.environ["GITHUB_REPOSITORY"]
 
 prompt = f"{title}\n\n{body}"
 
-# ۲. ۵ مدل پایدار (نتیجه تست ۸ مدل)
+# ۲. ۵ مدل پایدار (نتیجه تست ۸ مدل — فقط موفق‌ها)
 models = [
     {"id": "gpt-4o-mini", "role": "دستیار عمومی، برنامه‌نویسی و تحلیل فنی"},
     {"id": "DeepSeek-R1", "role": "تحلیل منطقی، ریاضی و امنیت سایبری"},
@@ -33,23 +33,27 @@ forced_prompt = f"""⚠️ دستور: شما باید فقط به زبان فا
 answers = []
 
 for model in models:
-    response = requests.post(
-        "https://models.github.ai/inference/chat/completions",
-        headers={
-            "Authorization": f"Bearer {GITHUB_TOKEN}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": model["id"],
-            "messages": [{"role": "user", "content": forced_prompt}],
-            "max_tokens": 600
-        }
-    )
-    if response.status_code == 200:
-        answer = response.json()["choices"][0]["message"]["content"]
-        answers.append(f"**{model['id']}** ({model['role']}):\n{answer}\n")
-    else:
-        answers.append(f"**{model['id']}** (خطا {response.status_code})")
+    try:
+        response = requests.post(
+            "https://models.github.ai/inference/chat/completions",
+            headers={
+                "Authorization": f"Bearer {GITHUB_TOKEN}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": model["id"],
+                "messages": [{"role": "user", "content": forced_prompt}],
+                "max_tokens": 600
+            },
+            timeout=45
+        )
+        if response.status_code == 200:
+            answer = response.json()["choices"][0]["message"]["content"]
+            answers.append(f"**✅ {model['id']}** ({model['role']}):\n{answer}\n")
+        else:
+            answers.append(f"**❌ {model['id']}** (خطا {response.status_code})\n")
+    except Exception as e:
+        answers.append(f"**❌ {model['id']}** (استثنا: {str(e)[:100]})\n")
 
 # ۳. مدل قاضی برای جمع‌بندی
 judge_prompt = f"سوال کاربر: {prompt}\n\nپاسخ‌های متخصصان:\n" + "\n".join(answers) + "\n\nبا توجه به پاسخ‌های بالا، یک پاسخ نهایی جامع و دقیق به فارسی بنویس. اگر پاسخ‌ها متناقض بودند، بهترین نظر را انتخاب کن."
@@ -64,7 +68,8 @@ judge_response = requests.post(
         "model": "gpt-4o-mini",
         "messages": [{"role": "user", "content": judge_prompt}],
         "max_tokens": 800
-    }
+    },
+    timeout=45
 )
 
 if judge_response.status_code == 200:
