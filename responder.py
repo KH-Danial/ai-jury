@@ -14,7 +14,7 @@ repo = os.environ["GITHUB_REPOSITORY"]
 
 prompt = f"{title}\n\n{body}"
 
-# ۲. ۵ مدل پایدار با تنظیمات بهینه Token
+# ۲. ۵ مدل پایدار با تنظیمات بهینه
 models = [
     {
         "id": "gpt-4o-mini",
@@ -22,13 +22,13 @@ models = [
         "delay": 0,
         "max_tokens": 1000
     },
-    {
-        "id": "DeepSeek-R1-0528",
-        "role": "تحلیل منطقی، ریاضی و امنیت سایبری",
-        "delay": 4,
-        "retry_on_429": True,
-        "max_tokens": 2000  # افزایش سقف توکن برای پاسخ کامل
-    },
+    # {
+    #     "id": "deepseek/deepseek-r1",
+    #     "role": "تحلیل منطقی، ریاضی و امنیت سایبری",
+    #     "delay": 4,
+    #     "retry_on_429": True,
+    #     "max_tokens": 2000
+    # },
     {
         "id": "Mistral-small-2503",
         "role": "تحلیل مفهومی، فلسفه و دیدگاه‌های کلان",
@@ -36,7 +36,7 @@ models = [
         "max_tokens": 1000
     },
     {
-        "id": "meta/Llama-3.3-70B-Instruct",
+        "id": "meta/llama-3.3-70b-instruct",
         "role": "استدلال پیشرفته و تحقیق عمیق",
         "delay": 0,
         "max_tokens": 1000
@@ -87,9 +87,18 @@ for model in models:
                 answer = response.json()["choices"][0]["message"]["content"]
                 answers.append(f"**✅ {model['id']}** ({model['role']}):\n{answer}\n")
                 success = True
-            elif response.status_code == 429 and attempt < max_attempts:
-                wait_time = 4 * (2 ** (attempt - 1))
-                time.sleep(wait_time)
+            elif response.status_code == 429:
+                if attempt < max_attempts:
+                    wait_time = 4 * (2 ** (attempt - 1))
+                    time.sleep(wait_time)
+                else:
+                    # 🆕 توضیح فارسی برای کاربر
+                    answers.append(
+                        f"**⚠️ {model['id']}** (خطای ۴۲۹)\n"
+                        f"> این خطا فنی نیست — تعداد درخواست‌های مجاز روزانه این مدل به پایان رسیده است.\n"
+                        f"> لطفاً ۲۴ ساعت بعد دوباره تلاش کنید یا از مدل دیگری استفاده نمایید.\n"
+                    )
+                    success = True
             else:
                 answers.append(f"**❌ {model['id']}** (خطا {response.status_code})\n")
                 success = True
@@ -120,7 +129,7 @@ else:
     final_answer = f"⚠️ خطا در جمع‌بندی نهایی: {judge_response.status_code}"
 
 # ۴. ارسال کامنت نهایی
-comment_body = f"## 🏛️ هیئت منصفه هوش مصنوعی\n\n### 👥 ۵ متخصص:\n- GPT-4o mini\n- DeepSeek R1 (0528)\n- Mistral Small\n- Llama 3.3 70B\n- Phi-4\n\n### 📣 پاسخ‌های متخصصان:\n" + "\n---\n".join(answers) + f"\n---\n### ⚖️ پاسخ نهایی (قاضی - GPT-4o mini):\n{final_answer}"
+comment_body = f"## 🏛️ هیئت منصفه هوش مصنوعی\n\n### 👥 ۵ متخصص:\n- GPT-4o mini\n- DeepSeek R1 (غیرفعال موقت)\n- Mistral Small\n- Llama 3.3 70B\n- Phi-4\n\n### 📣 پاسخ‌های متخصصان:\n" + "\n---\n".join(answers) + f"\n---\n### ⚖️ پاسخ نهایی (قاضی - GPT-4o mini):\n{final_answer}"
 
 comment_url = f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments"
 post = requests.post(
