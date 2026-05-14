@@ -14,12 +14,12 @@ repo = os.environ["GITHUB_REPOSITORY"]
 
 prompt = f"{title}\n\n{body}"
 
-# ۲. مدل‌های هیئت منصفه (۴ متخصص متن)
+# ۲. مدل‌های هیئت منصفه - ۴ متخصص پایدار و تست‌شده
 models = [
-    {"id": "gpt-4o-mini", "role": "دستیار عمومی، برنامه‌نویسی و تحلیل فنی"},
-    {"id": "DeepSeek-R1", "role": "تحلیل منطقی، ریاضی و امنیت سایبری"},
-    {"id": "cohere/cohere-command-r-08-2024", "role": "نویسندگی خلاق، تولید محتوا و ایده‌پردازی"},
-    {"id": "Mistral-small-2503", "role": "تحلیل مفهومی، فلسفه و دیدگاه‌های کلان"}
+    "gpt-4o-mini",                        # ChatGPT
+    "DeepSeek-R1",                        # DeepSeek
+    "cohere/cohere-command-r-08-2024",    # Cohere (جایگزین Grok)
+    "Mistral-small-2503"                  # Mistral (جایگزین Gemini)
 ]
 
 forced_prompt = f"""⚠️ دستور: شما باید فقط به زبان فارسی پاسخ دهید. حق استفاده از هیچ زبان دیگری را ندارید.
@@ -39,21 +39,21 @@ for model in models:
             "Content-Type": "application/json"
         },
         json={
-            "model": model["id"],
+            "model": model,
             "messages": [{"role": "user", "content": forced_prompt}],
             "max_tokens": 600
         }
     )
     if response.status_code == 200:
         answer = response.json()["choices"][0]["message"]["content"]
-        answers.append(f"**{model['id']}** ({model['role']}):\n{answer}\n")
+        answers.append(f"**{model}:**\n{answer}\n")
     else:
-        answers.append(f"**{model['id']}** (خطا {response.status_code})")
+        answers.append(f"**{model}:** خطا {response.status_code}")
 
 # ۳. مدل قاضی برای جمع‌بندی
-judge_prompt = f"سوال کاربر: {prompt}\n\nپاسخ‌های متخصصان:\n" + "\n".join(answers) + "\n\nبا توجه به پاسخ‌های بالا، یک پاسخ نهایی جامع و دقیق به فارسی بنویس. اگر پاسخ‌ها متناقض بودند، بهترین نظر را انتخاب کن."
+jury_prompt = f"سوال کاربر: {prompt}\n\nپاسخ‌های متخصصان:\n" + "\n".join(answers) + "\n\nبا توجه به پاسخ‌های بالا، یک پاسخ نهایی جامع و دقیق به فارسی بنویس. اگر پاسخ‌ها متناقض بودند، بهترین نظر را انتخاب کن."
 
-judge_response = requests.post(
+final_response = requests.post(
     "https://models.github.ai/inference/chat/completions",
     headers={
         "Authorization": f"Bearer {GITHUB_TOKEN}",
@@ -61,15 +61,15 @@ judge_response = requests.post(
     },
     json={
         "model": "gpt-4o-mini",
-        "messages": [{"role": "user", "content": judge_prompt}],
+        "messages": [{"role": "user", "content": jury_prompt}],
         "max_tokens": 800
     }
 )
 
-if judge_response.status_code == 200:
-    final_answer = judge_response.json()["choices"][0]["message"]["content"]
+if final_response.status_code == 200:
+    final_answer = final_response.json()["choices"][0]["message"]["content"]
 else:
-    final_answer = f"⚠️ خطا در جمع‌بندی نهایی: {judge_response.status_code}"
+    final_answer = f"⚠️ خطا در جمع‌بندی: {final_response.status_code}"
 
 # ۴. ارسال کامنت نهایی
 comment_body = f"## 🏛️ هیئت منصفه هوش مصنوعی\n\n### 👥 ۴ متخصص:\n- ChatGPT (GPT-4o mini)\n- DeepSeek R1\n- Cohere Command R\n- Mistral Small\n\n### 📣 پاسخ‌های متخصصان:\n" + "\n---\n".join(answers) + f"\n---\n### ⚖️ پاسخ نهایی (قاضی - GPT-4o mini):\n{final_answer}"
