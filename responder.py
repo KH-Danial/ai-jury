@@ -20,32 +20,32 @@ models = [
         "id": "gpt-4o-mini",
         "role": "دستیار عمومی، برنامه‌نویسی و تحلیل فنی",
         "delay": 0,
-        "max_tokens": 800
+        "max_tokens": 1000
     },
     {
         "id": "DeepSeek-R1-0528",
         "role": "تحلیل منطقی، ریاضی و امنیت سایبری",
         "delay": 4,
         "retry_on_429": True,
-        "max_tokens": 1000  # افزایش سقف توکن برای پاسخ کامل
+        "max_tokens": 2000  # افزایش سقف توکن برای پاسخ کامل
     },
     {
         "id": "Mistral-small-2503",
         "role": "تحلیل مفهومی، فلسفه و دیدگاه‌های کلان",
         "delay": 0,
-        "max_tokens": 800
+        "max_tokens": 1000
     },
     {
         "id": "meta/llama-3.3-70b-instruct",  # 🆕 شناسه صحیح با حروف کوچک
         "role": "استدلال پیشرفته و تحقیق عمیق",
         "delay": 0,
-        "max_tokens": 800
+        "max_tokens": 1000
     },
     {
         "id": "phi-4-reasoning",  # 🆕 جایگزین phi-4 (مدل جدید مایکروسافت)
         "role": "استدلال پیشرفته و حل مسئله",
         "delay": 0,
-        "max_tokens": 800
+        "max_tokens": 1000
     }
 ]
 
