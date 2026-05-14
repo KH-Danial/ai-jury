@@ -42,7 +42,7 @@ models = [
         "max_tokens": 1000
     },
     {
-        "id": "phi-4",
+        "id": "azureml/Phi-4-reasoning",
         "role": "استدلال ساختاریافته و حل مسئله",
         "delay": 0,
         "max_tokens": 1000
