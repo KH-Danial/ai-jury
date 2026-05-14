@@ -22,13 +22,13 @@ models = [
         "delay": 0,
         "max_tokens": 1000
     },
-    # {
-    #     "id": "deepseek/deepseek-r1",
-    #     "role": "تحلیل منطقی، ریاضی و امنیت سایبری",
-    #     "delay": 4,
-    #     "retry_on_429": True,
-    #     "max_tokens": 2000
-    # },
+    {
+        "id": "deepseek/deepseek-r1",
+        "role": "تحلیل منطقی، ریاضی و امنیت سایبری",
+        "delay": 4,
+        "retry_on_429": True,
+        "max_tokens": 2000
+    },
     {
         "id": "Mistral-small-2503",
         "role": "تحلیل مفهومی، فلسفه و دیدگاه‌های کلان",
