@@ -20,7 +20,7 @@ models = [
         "id": "gpt-4o-mini",
         "role": "دستیار عمومی، برنامه‌نویسی و تحلیل فنی",
         "delay": 0,
-        "max_tokens": 1000
+        "max_tokens": 2000
     },
     {
         "id": "deepseek/deepseek-r1",
@@ -33,19 +33,19 @@ models = [
         "id": "Mistral-small-2503",
         "role": "تحلیل مفهومی، فلسفه و دیدگاه‌های کلان",
         "delay": 0,
-        "max_tokens": 1000
+        "max_tokens": 2000
     },
     {
         "id": "meta/llama-3.3-70b-instruct",
         "role": "استدلال پیشرفته و تحقیق عمیق",
         "delay": 0,
-        "max_tokens": 1000
+        "max_tokens": 2000
     },
     {
         "id": "phi-4",
         "role": "استدلال ساختاریافته و حل مسئله",
         "delay": 0,
-        "max_tokens": 1000
+        "max_tokens": 2000
     }
 ]
 
