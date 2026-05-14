@@ -14,18 +14,45 @@ repo = os.environ["GITHUB_REPOSITORY"]
 
 prompt = f"{title}\n\n{body}"
 
-# ۲. ۵ مدل پایدار با مدیریت پیشرفته Rate Limit
+# ۲. ۵ مدل پایدار با تنظیمات بهینه Token
 models = [
-    {"id": "gpt-4o-mini", "role": "دستیار عمومی، برنامه‌نویسی و تحلیل فنی", "delay": 0},
-    {"id": "DeepSeek-R1-0528", "role": "تحلیل منطقی، ریاضی و امنیت سایبری", "delay": 4, "retry_on_429": True},
-    {"id": "Mistral-small-2503", "role": "تحلیل مفهومی، فلسفه و دیدگاه‌های کلان", "delay": 0},
-    {"id": "meta/Llama-3.3-70B-Instruct", "role": "استدلال پیشرفته و تحقیق عمیق", "delay": 0},
-    {"id": "phi-4", "role": "استدلال ساختاریافته و حل مسئله", "delay": 0}
+    {
+        "id": "gpt-4o-mini",
+        "role": "دستیار عمومی، برنامه‌نویسی و تحلیل فنی",
+        "delay": 0,
+        "max_tokens": 1000
+    },
+    {
+        "id": "DeepSeek-R1-0528",
+        "role": "تحلیل منطقی، ریاضی و امنیت سایبری",
+        "delay": 4,
+        "retry_on_429": True,
+        "max_tokens": 2000  # افزایش سقف توکن برای پاسخ کامل
+    },
+    {
+        "id": "Mistral-small-2503",
+        "role": "تحلیل مفهومی، فلسفه و دیدگاه‌های کلان",
+        "delay": 0,
+        "max_tokens": 1000
+    },
+    {
+        "id": "meta/Llama-3.3-70B-Instruct",
+        "role": "استدلال پیشرفته و تحقیق عمیق",
+        "delay": 0,
+        "max_tokens": 1000
+    },
+    {
+        "id": "phi-4",
+        "role": "استدلال ساختاریافته و حل مسئله",
+        "delay": 0,
+        "max_tokens": 1000
+    }
 ]
 
 forced_prompt = f"""⚠️ دستور: شما باید فقط به زبان فارسی پاسخ دهید. حق استفاده از هیچ زبان دیگری را ندارید.
 اگر سوال کاربر حاوی متنی غیرفارسی است، آن را ترجمه کرده و پاسخ خود را کاملاً فارسی بنویسید.
-به هیچ عنوان به «فارسی نبودن» یا «توانایی زبان» اشاره نکنید. مستقیماً پاسخ دهید.
+به هیچ عنوان به «فارسی نبودن» یا «توانایی زبان» اشاره نکنید.
+پاسخی کامل، جامع و بدون وقفه ارائه دهید و از نصفه رها کردن پاسخ خودداری کنید.
 
 سوال کاربر:
 {prompt}"""
@@ -33,7 +60,6 @@ forced_prompt = f"""⚠️ دستور: شما باید فقط به زبان فا
 answers = []
 
 for model in models:
-    # اعمال تأخیر اولیه
     if model.get("delay", 0) > 0:
         time.sleep(model["delay"])
     
@@ -53,18 +79,16 @@ for model in models:
                 json={
                     "model": model["id"],
                     "messages": [{"role": "user", "content": forced_prompt}],
-                    "max_tokens": 600
+                    "max_tokens": model.get("max_tokens", 800)
                 },
-                timeout=60
+                timeout=90
             )
             if response.status_code == 200:
                 answer = response.json()["choices"][0]["message"]["content"]
                 answers.append(f"**✅ {model['id']}** ({model['role']}):\n{answer}\n")
                 success = True
             elif response.status_code == 429 and attempt < max_attempts:
-                # Exponential Backoff: ۴، ۸، ۱۶ ثانیه
                 wait_time = 4 * (2 ** (attempt - 1))
-                answers.append(f"**⏳ {model['id']}** Rate Limit - تلاش {attempt}/{max_attempts} - انتظار {wait_time} ثانیه\n")
                 time.sleep(wait_time)
             else:
                 answers.append(f"**❌ {model['id']}** (خطا {response.status_code})\n")
@@ -85,9 +109,9 @@ judge_response = requests.post(
     json={
         "model": "gpt-4o-mini",
         "messages": [{"role": "user", "content": judge_prompt}],
-        "max_tokens": 800
+        "max_tokens": 1000
     },
-    timeout=60
+    timeout=90
 )
 
 if judge_response.status_code == 200:
