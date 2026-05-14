@@ -16,10 +16,10 @@ prompt = f"{title}\n\n{body}"
 
 # ۲. مدل‌های هیئت منصفه - ۴ متخصص پایدار و تست‌شده
 models = [
-    "gpt-4o-mini",                        # ChatGPT
-    "DeepSeek-R1",                        # DeepSeek
-    "cohere/cohere-command-r-08-2024",    # Cohere (جایگزین Grok)
-    "Mistral-small-2503"                  # Mistral (جایگزین Gemini)
+    "gpt-4o-mini",                        # دستیار عمومی (برنامه‌نویسی و تحلیل فنی)
+    "DeepSeek-R1",                        # تحلیل منطقی (ریاضی و امنیت سایبری)
+    "cohere/cohere-command-r-08-2024",    # نویسندگی خلاق (تولید محتوا و ایده‌پردازی)
+    "Mistral-small-2503"                  # تحلیل مفهومی (فلسفه و دیدگاه‌های کلان)
 ]
 
 forced_prompt = f"""⚠️ دستور: شما باید فقط به زبان فارسی پاسخ دهید. حق استفاده از هیچ زبان دیگری را ندارید.
