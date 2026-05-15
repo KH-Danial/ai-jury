@@ -34,14 +34,7 @@ urls = [
 `https://raw.githubusercontent.com/10ium/V2ray-Config/main/Splitted-By-Protocol/hysteria2.txt`,
 `https://raw.githubusercontent.com/giromo/Collector2/refs/heads/main/bulk/hysteria2_iran.txt`,
 `https://raw.githubusercontent.com/giromo/Collector/refs/heads/main/Splitted-By-Protocol/WireGuard.txt`,
-
-
-
-
-
-'https://github.com/ALIILAPRO/v2rayNG-Config/raw/refs/heads/main/server.txt',
-    'https://raw.githubusercontent.com/ALIILAPRO/v2rayNG-Config/refs/heads/main/server.txt',
-    'https://raw.githubusercontent.com/Epodonios/v2ray-configs/refs/heads/main/Sub1.txt',
+'https://github.com/ALIILAPRO/v2rayNG-Config/raw/refs/heads/main/server.txt', 'https://raw.githubusercontent.com/ALIILAPRO/v2rayNG-Config/refs/heads/main/server.txt', 'https://raw.githubusercontent.com/Epodonios/v2ray-configs/refs/heads/main/Sub1.txt',
     'https://raw.githubusercontent.com/Epodonios/v2ray-configs/refs/heads/main/Sub2.txt',
     'https://raw.githubusercontent.com/Epodonios/v2ray-configs/refs/heads/main/Splitted-By-Protocol/trojan.txt',
     'https://raw.githubusercontent.com/Epodonios/v2ray-configs/refs/heads/main/All_Configs_base64_Sub.txt',
