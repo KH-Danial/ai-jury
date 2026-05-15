@@ -9,7 +9,9 @@ import os
 urls = [
     
 `https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium_proxy_configs.txt',
+
 `https://raw.githubusercontent.com/mahsanet/MahsaFreeConfig/refs/heads/main/mci/sub_1.txt',
+
 `https://raw.githubusercontent.com/mahsanet/MahsaFreeConfig/refs/heads/main/mci/sub_2.txt',
 
 `https://raw.githubusercontent.com/mahsanet/MahsaFreeConfig/refs/heads/main/mci/sub_3.txt',
