@@ -9,30 +9,53 @@ import os
 urls = [
     
 `https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium_proxy_configs.txt',
+
 `https://raw.githubusercontent.com/mahsanet/MahsaFreeConfig/refs/heads/main/mci/sub_1.txt',
+
 `https://raw.githubusercontent.com/mahsanet/MahsaFreeConfig/refs/heads/main/mci/sub_2.txt',
+
 `https://raw.githubusercontent.com/mahsanet/MahsaFreeConfig/refs/heads/main/mci/sub_3.txt',
+
 `https://raw.githubusercontent.com/mahsanet/MahsaFreeConfig/refs/heads/main/mci/sub_4.txt',
+
 `https://raw.githubusercontent.com/mahsanet/MahsaFreeConfig/refs/heads/main/mtn/sub_1.txt',
+
 `https://raw.githubusercontent.com/mahsanet/MahsaFreeConfig/refs/heads/main/mtn/sub_2.txt',
+
 `https://raw.githubusercontent.com/mahsanet/MahsaFreeConfig/refs/heads/main/mtn/sub_3.txt',
+
 `https://raw.githubusercontent.com/mahsanet/MahsaFreeConfig/refs/heads/main/mtn/sub_4.txt',
-`https://raw.githubusercontent.com/10ium/V2Hub3/main/Split/Base64/reality',
+
+`https://raw.githubusercontent.com/10ium/V2Hub3/main/Split/Base64/reality`,
 `https://raw.githubusercontent.com/10ium/V2RayAggregator/refs/heads/master/Eternity',
+
 `https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium_ss_iran.txt',
+
 `https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium_vmess_iran.txt',
+
 `https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium_vless_iran.txt',
+
 `https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium-V2rayCollector-ss.txt',
+
 `https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium-V2rayCollector-vless.txt',
 `https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium-V2rayCollector-vmess.txt',
+
 `https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium-V2rayCollector-trojan.txt',
+
 `https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium_trojan_iran.txt',
+
 `https://raw.githubusercontent.com/10ium/V2ray-Config/main/Splitted-By-Protocol/vless.txt',
+
 `https://raw.githubusercontent.com/10ium/V2ray-Config/main/Splitted-By-Protocol/vmess.txt',
+
 `https://raw.githubusercontent.com/10ium/V2ray-Config/main/Splitted-By-Protocol/trojan.txt',
+
 `https://raw.githubusercontent.com/10ium/V2ray-Config/main/Splitted-By-Protocol/ss.txt',
+
 `https://raw.githubusercontent.com/10ium/V2ray-Config/main/Splitted-By-Protocol/hysteria2.txt',
+
 `https://raw.githubusercontent.com/giromo/Collector2/refs/heads/main/bulk/hysteria2_iran.txt',
+
 `https://raw.githubusercontent.com/giromo/Collector/refs/heads/main/Splitted-By-Protocol/WireGuard.txt',
 
 
