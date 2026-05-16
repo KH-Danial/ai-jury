@@ -24,7 +24,7 @@ jobs:
         run: pip install requests
 
       - name: Run Fetch and Filter Script
-        run: python fetch_configs.py
+        run: python fetch-configs.py
 
       - name: Remove duplicate configs
         run: python delete_duplicate_name.py
