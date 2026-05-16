@@ -13,7 +13,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 # ============================================================
-# لیست لینک‌های جمع‌کننده کانفیگ (کامل)
+# لیست لینک‌های جمع‌کننده کانفیگ (کامل، از فایل قبلی شما)
 # ============================================================
 urls = [
     'https://github.com/ALIILAPRO/v2rayNG-Config/raw/refs/heads/main/server.txt',
@@ -431,8 +431,8 @@ OUTPUT_FILES = {
     'wireguard': 'wireguard.txt'
 }
 
-MAX_CONFIGS_PER_FILE = 20000  # حداکثر تعداد کانفیگ در هر فایل
-
+# ------------------------------------------------------------
+# توابع کمکی (بدون تغییر)
 # ------------------------------------------------------------
 def decode_if_base64(content: str) -> str:
     try:
@@ -579,40 +579,17 @@ def main():
         }
         print(f"   {proto}: total={raw_count:,}, sample={health['sampled']}, alive={health['alive']} ({health['percent']:.1f}%)")
     
-    # ============================================================
-    # ذخیره فایل‌ها با قابلیت تقسیم خودکار
-    # ============================================================
-    for protocol, cfg_set in configs_by_protocol.items():
-        if not cfg_set:
-            print(f"⚠️ {OUTPUT_FILES[protocol]}: no configs found.")
-            continue
-        
-        all_configs = sorted(cfg_set)
-        total = len(all_configs)
-        
-        if total <= MAX_CONFIGS_PER_FILE:
-            # یک فایل واحد
-            text = "\n".join(all_configs)
+    for proto, cfg_set in configs_by_protocol.items():
+        if cfg_set:
+            text = "\n".join(sorted(cfg_set))
             encoded = base64.b64encode(text.encode('utf-8')).decode('utf-8')
-            with open(OUTPUT_FILES[protocol], 'w', encoding='utf-8') as f:
+            filename = OUTPUT_FILES[proto]
+            with open(filename, 'w', encoding='utf-8') as f:
                 f.write(encoded)
-            print(f"✅ {OUTPUT_FILES[protocol]}: {total} configs saved.")
+            print(f"✅ {filename}: {len(cfg_set)} configs saved.")
         else:
-            # تقسیم به چند فایل
-            num_files = (total + MAX_CONFIGS_PER_FILE - 1) // MAX_CONFIGS_PER_FILE
-            base_name = OUTPUT_FILES[protocol].replace('.txt', '')
-            for i in range(num_files):
-                start = i * MAX_CONFIGS_PER_FILE
-                end = min((i+1) * MAX_CONFIGS_PER_FILE, total)
-                part_configs = all_configs[start:end]
-                text = "\n".join(part_configs)
-                encoded = base64.b64encode(text.encode('utf-8')).decode('utf-8')
-                filename = f"{base_name}_{i+1}.txt"
-                with open(filename, 'w', encoding='utf-8') as f:
-                    f.write(encoded)
-                print(f"✅ {filename}: {len(part_configs)} configs (part {i+1}/{num_files}) saved.")
+            print(f"⚠️ {OUTPUT_FILES[proto]}: no configs found.")
     
-    # ذخیره آمار
     total_configs = sum(stats[p]['final_count'] for p in stats)
     summary = {
         'total_configs': total_configs,
