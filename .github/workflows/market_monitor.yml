@@ -1,0 +1,41 @@
+name: 🕵️ Market Monitor
+
+on:
+  schedule:
+    # هر ساعت یک بار اجرا شود (می‌توانید تغییر دهید)
+    - cron: '0 * * * *'
+  workflow_dispatch: # امکان اجرای دستی
+
+jobs:
+  fetch-and-analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      # اجازه نوشتن در مخزن برای commit کردن تغییرات
+      contents: write
+
+    steps:
+      - name: 📥 دریافت کدها
+        uses: actions/checkout@v4
+        with:
+          # واکشی کامل تاریخچه برای commit کردن فایل‌ها
+          fetch-depth: 0
+
+      - name: 🐍 نصب پایتون
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 📦 نصب نیازمندی‌ها
+        run: |
+          pip install requests
+
+      - name: 🔍 اجرای اسکریپت تحلیل
+        run: python fetch_and_analyze.py
+
+      - name: 💾 ثبت تغییرات در مخزن
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add price_history.json README.md market_report.json
+          git diff --staged --quiet || git commit -m "به‌روزرسانی خودکار گزارش بازار - $(date +'%Y-%m-%d %H:%M')"
+          git push
