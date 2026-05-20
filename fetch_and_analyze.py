@@ -2,351 +2,274 @@ import requests
 import json
 import os
 import sys
-import traceback
 from datetime import datetime, timezone
 
 # --- تنظیمات ---
 API_BASE_URL = "https://api.bitbarg.com/api/v1/docs/prices"
 HISTORY_FILE = "price_history.json"
 README_FILE = "README.md"
+REPORT_FILE = "market_report.json"
 TOP_N = 5
 
+def get_price(item):
+    """
+    استخراج قیمت از ساختار API بیت‌برگ.
+    این تابع تمام فیلدهای محتمل قیمت را بررسی می‌کند.
+    """
+    # اولویت: currency_price (قیمت به USDT)
+    if "currency_price" in item and item["currency_price"] is not None:
+        return float(item["currency_price"])
+    
+    # دوم: quote (قیمت به تومان)
+    if "quote" in item and item["quote"] is not None:
+        return float(item["quote"])
+    
+    # سوم: price (اگر وجود داشت)
+    if "price" in item and item["price"] is not None:
+        return float(item["price"])
+    
+    # هیچ قیمتی پیدا نشد
+    return 0
+
 def fetch_all_prices():
-    """دریافت تمام قیمت‌ها با مدیریت کامل خطاها و لاگ‌گیری دقیق"""
+    """
+    دریافت قیمت تمام ارزها با مدیریت صفحه‌بندی و خطاها
+    """
     all_items = []
     page = 1
-    last_page = 1
-
-    print(f"🔍 شروع دریافت داده از {API_BASE_URL}")
-
+    
     while True:
         try:
-            print(f"📥 در حال دریافت صفحه {page}...")
-            resp = requests.get(
+            print(f"📥 دریافت صفحه {page}...")
+            response = requests.get(
                 API_BASE_URL,
                 params={"pageSize": 100, "page": page, "base": "usdt"},
-                headers={
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                    "User-Agent": "GitHub-Action-Monitor/1.0"
-                },
-                timeout=30
+                headers={"Accept": "application/json"},
+                timeout=15
             )
+            response.raise_for_status()
+            data = response.json()
             
-            print(f"📊 وضعیت پاسخ: {resp.status_code}")
-            print(f"🔗 URL نهایی: {resp.url}")
-            
-            resp.raise_for_status()
-            
-            content_type = resp.headers.get('Content-Type', '')
-            if 'application/json' not in content_type:
-                print(f"⚠️ نوع محتوای غیرمنتظره: {content_type}")
-                print(f"📄 محتوای پاسخ: {resp.text[:200]}")
-                break
-            
-            data = resp.json()
-            
-            print(f"🔑 کلیدهای پاسخ: {list(data.keys())}")
-            print(f"✅ success: {data.get('success')}")
-            print(f"📝 message: {data.get('message')}")
-            
+            # بررسی ساختار پاسخ
             if not isinstance(data, dict):
-                print(f"⚠️ ساختار پاسخ غیرمنتظره: {type(data)}")
+                print(f"⚠️ پاسخ API ساختار غیرمنتظره‌ای دارد: {type(data)}")
                 break
                 
-            if not data.get("success"):
-                error_msg = data.get('message', 'خطای نامشخص')
-                print(f"❌ API خطا داد: {error_msg}")
+            if not data.get("success", False):
+                print(f"⚠️ خطا از API: {data.get('message', 'نامشخص')}")
                 break
                 
-            result = data.get("result", {})
-            if not isinstance(result, dict):
-                print(f"⚠️ 'result' یک دیکشنری نیست: {type(result)}")
+            if "result" not in data or "items" not in data["result"]:
+                print("⚠️ ساختار 'result' یا 'items' در پاسخ یافت نشد")
                 break
                 
-            items = result.get("items", [])
+            items = data["result"]["items"]
             if not items:
-                print("📭 هیچ آیتمی در این صفحه یافت نشد")
+                print(f"📭 صفحه {page} خالی است - پایان دریافت")
                 break
                 
             all_items.extend(items)
-            print(f"✅ {len(items)} آیتم از صفحه {page} دریافت شد (کل: {len(all_items)})")
+            print(f"✅ {len(items)} آیتم از صفحه {page} دریافت شد")
             
-            meta = result.get("meta", {})
-            paginate_helper = meta.get("paginateHelper", {})
-            current_page = paginate_helper.get("currentPage", page)
-            last_page = paginate_helper.get("lastPage", 1)
-            total_items = paginate_helper.get("total", 0)
-            
-            print(f"📖 صفحه {current_page} از {last_page} (کل آیتم‌ها: {total_items})")
+            # بررسی وجود صفحه بعدی
+            meta = data.get("result", {}).get("meta", {}).get("paginateHelper", {})
+            current_page = meta.get("currentPage", page)
+            last_page = meta.get("lastPage", 1)
             
             if current_page >= last_page:
-                print(f"🏁 به صفحه آخر رسیدیم")
+                print(f"🏁 به صفحه آخر رسیدیم ({current_page}/{last_page})")
                 break
                 
             page += 1
             
-        except requests.exceptions.Timeout:
-            print(f"⏰ درخواست صفحه {page} با timeout مواجه شد")
-            break
-        except requests.exceptions.ConnectionError as e:
-            print(f"🔌 خطای اتصال: {e}")
-            break
         except requests.exceptions.RequestException as e:
-            print(f"🌐 خطای شبکه: {e}")
+            print(f"❌ خطا در دریافت داده‌ها: {e}")
             break
         except json.JSONDecodeError as e:
-            print(f"📄 خطا در تجزیه JSON: {e}")
-            if 'resp' in locals():
-                print(f"📄 محتوای پاسخ: {resp.text[:500]}")
+            print(f"❌ خطا در تجزیه JSON: {e}")
             break
         except Exception as e:
-            print(f"💥 خطای غیرمنتظره: {e}")
-            traceback.print_exc()
+            print(f"❌ خطای غیرمنتظره: {e}")
             break
-
-    print(f"📦 مجموع آیتم‌های دریافت شده: {len(all_items)}")
+    
     return all_items
 
 def load_history():
-    """بارگذاری امن تاریخچه"""
-    if not os.path.exists(HISTORY_FILE):
-        print(f"📂 فایل تاریخچه {HISTORY_FILE} وجود ندارد - این اولین اجراست")
-        return []
-    
-    try:
-        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-            history = json.load(f)
-            print(f"📚 تاریخچه با {len(history)} وضعیت بارگذاری شد")
-            return history
-    except json.JSONDecodeError as e:
-        print(f"⚠️ خطا در خواندن تاریخچه (JSON نامعتبر): {e}")
-        return []
-    except Exception as e:
-        print(f"⚠️ خطا در خواندن تاریخچه: {e}")
-        return []
+    """خواندن داده‌های تاریخی از فایل"""
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"⚠️ خطا در خواندن تاریخچه: {e}")
+            return []
+    return []
 
 def save_history(history):
-    """ذخیره تاریخچه با مدیریت خطا"""
+    """ذخیره‌سازی داده‌های تاریخی"""
     try:
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(history, f, indent=2, ensure_ascii=False)
-        print(f"💾 تاریخچه ({len(history)} وضعیت) در {HISTORY_FILE} ذخیره شد")
-    except Exception as e:
+        print(f"✅ تاریخچه در {HISTORY_FILE} ذخیره شد")
+    except IOError as e:
         print(f"❌ خطا در ذخیره تاریخچه: {e}")
 
-def get_item_price(item):
-    """
-    استخراج قیمت از آیتم با پشتیبانی از ساختارهای مختلف.
-    این تابع جدید مشکل اصلی را حل می‌کند.
-    """
-    # اولویت: currency_price (دلار)
-    price = item.get("currency_price")
-    if price is not None:
-        return float(price)
-    
-    # سپس quote (تومان)
-    price = item.get("quote")
-    if price is not None:
-        return float(price)
-    
-    # سپس price (اگر وجود داشته باشد)
-    price = item.get("price")
-    if price is not None:
-        return float(price)
-    
-    # در نهایت، اگر هیچکدام وجود نداشت
-    return None
-
-def calculate_changes(current, previous):
-    """محاسبه درصد تغییرات با استفاده از تابع استخراج قیمت جدید"""
+def calculate_changes(current_prices, previous_prices):
+    """محاسبه درصد تغییرات"""
     changes = {}
-    if not current:
-        print("⚠️ لیست قیمت‌های فعلی خالی است")
+    
+    if not current_prices:
+        print("⚠️ قیمت فعلی موجود نیست")
         return changes
-
-    prev_dict = {}
-    if previous:
-        for item in previous:
-            slug = item.get("slug")
-            price = get_item_price(item)
-            if slug and price is not None:
-                prev_dict[slug] = price
-        print(f"📊 {len(prev_dict)} قیمت قبلی برای مقایسه موجود است")
-
-    skipped = 0
-    for item in current:
-        slug = item.get("slug")
-        price = get_item_price(item)
         
-        if not slug or price is None:
-            skipped += 1
+    prev_dict = {}
+    if previous_prices:
+        prev_dict = {item["slug"]: get_price(item) for item in previous_prices if "slug" in item}
+    
+    for item in current_prices:
+        slug = item.get("slug", "Unknown")
+        current_price = get_price(item)
+        
+        if not slug:
             continue
-
-        prev_price = prev_dict.get(slug)
-        if prev_price and prev_price > 0:
-            change_percent = ((price - prev_price) / prev_price) * 100
+            
+        previous_price = prev_dict.get(slug)
+        
+        if previous_price and previous_price > 0:
+            change_percent = ((current_price - previous_price) / previous_price) * 100
+            changes[slug] = {
+                "name": slug,
+                "current_price": current_price,
+                "previous_price": previous_price,
+                "change_percent": round(change_percent, 4)
+            }
         else:
-            change_percent = 0.0
-
-        changes[slug] = {
-            "name": slug,
-            "current_price": price,
-            "previous_price": prev_price,
-            "change_percent": round(change_percent, 4)
-        }
+            changes[slug] = {
+                "name": slug,
+                "current_price": current_price,
+                "previous_price": None,
+                "change_percent": 0.0
+            }
     
-    if skipped:
-        print(f"⚠️ {skipped} آیتم به دلیل عدم وجود slug یا قیمت نادیده گرفته شد")
-    
-    print(f"✅ تغییرات برای {len(changes)} ارز محاسبه شد")
     return changes
 
-def generate_files(top_gainers, top_losers, all_changes, timestamp):
-    """تولید گزارش‌ها حتی در صورت عدم وجود داده"""
+def generate_readme(top_gainers, top_losers, all_changes, timestamp):
+    """تولید فایل README.md"""
+    sorted_changes = sorted(all_changes.values(), key=lambda x: x["change_percent"], reverse=True) if all_changes else []
     
-    if not all_changes:
-        readme_body = f"""# 📊 Bitbarg Market Monitor
-
-**🕒 آخرین به‌روزرسانی:** `{timestamp}`
-
-## ⚠️ وضعیت: خطا در دریافت داده
-متأسفانه در این اجرا داده‌ای از API دریافت نشد. لطفاً لاگ‌های اجرا را بررسی کنید.
-
-**دلایل احتمالی:**
-- مشکل در اتصال به API بیت‌برگ
-- تغییر در ساختار API
-- محدودیت‌های شبکه در GitHub Actions
-
----
-*🤖 این گزارش توسط GitHub Actions تولید می‌شود.*
-"""
-    else:
-        sorted_all = sorted(all_changes.values(), key=lambda x: x["change_percent"], reverse=True)
-        
-        gainers_str = "\n".join([
-            f"{i+1}. **{c['name']}**: {c['change_percent']:+.2f}% (قیمت: {c['current_price']:,.2f} دلار)"
-            for i, c in enumerate(top_gainers)
-        ])
-        
-        losers_str = "\n".join([
-            f"{i+1}. **{c['name']}**: {c['change_percent']:+.2f}% (قیمت: {c['current_price']:,.2f} دلار)"
-            for i, c in enumerate(top_losers)
-        ])
-        
-        table_rows = ""
-        for i, coin in enumerate(sorted_all[:20], 1):
-            emoji = "🟢" if coin["change_percent"] > 0 else ("🔴" if coin["change_percent"] < 0 else "⚪")
+    # ساخت ردیف‌های جدول
+    table_rows = ""
+    for i, coin in enumerate(sorted_changes[:20], 1):
+        if coin["change_percent"] != 0:  # فقط موارد با تغییرات غیر صفر
+            emoji = "📈" if coin["change_percent"] > 0 else "📉"
             table_rows += f"| {i} | {coin['name']} | {coin['current_price']:,.2f} | {coin['change_percent']:+.2f}% {emoji} |\n"
-        
-        readme_body = f"""# 📊 Bitbarg Market Monitor (گزارش زنده)
+    
+    # ساخت بخش برترین‌ها
+    gainers_list = "\n".join([f"{i+1}. {c['name']}: **%{c['change_percent']:+.2f}**" for i, c in enumerate(top_gainers)]) if top_gainers else "داده‌ای موجود نیست"
+    losers_list = "\n".join([f"{i+1}. {c['name']}: **%{c['change_percent']:+.2f}**" for i, c in enumerate(top_losers)]) if top_losers else "داده‌ای موجود نیست"
+    
+    readme_content = f"""# 📊 Bitbarg Market Monitor (بات نتایج زنده)
 
 **🕒 آخرین به‌روزرسانی:** `{timestamp}`
-**📈 تعداد ارزهای ردیابی‌شده:** `{len(all_changes)}`
 
 ---
 
-## 🔥 ۵ ارز با بیشترین رشد (۲۴ ساعته)
-{gainers_str}
+## 🔥 بیشترین رشدها
+{gainers_list}
 
-## ❄️ ۵ ارز با بیشترین افت (۲۴ ساعته)
-{losers_str}
-
----
-
-## 📋 ۲۰ ارز با بیشترین تغییرات
-| رتبه | ارز | قیمت (دلار) | تغییر ۲۴ ساعته |
-|------|-----|-------------|----------------|
-{table_rows}
+## ❄️ بیشترین افت‌ها
+{losers_list}
 
 ---
-*🤖 این گزارش به‌صورت خودکار هر ۶ ساعت توسط GitHub Actions به‌روزرسانی می‌شود.*
-*📡 داده‌ها از API رسمی [Bitbarg](https://bitbarg.com) دریافت می‌شود.*
+
+## 📈 جدول برترین تغییرات
+| رتبه | ارز | قیمت فعلی | تغییر ۲۴ ساعته |
+|------|-----|-----------|----------------|
+{table_rows if table_rows else "| - | - | - | - |"}
+
+---
+*🤖 این گزارش به صورت خودکار توسط GitHub Actions تولید و به‌روزرسانی می‌شود.*
 """
-    
     try:
         with open(README_FILE, "w", encoding="utf-8") as f:
-            f.write(readme_body)
-        print(f"📄 فایل {README_FILE} با موفقیت ذخیره شد")
-    except Exception as e:
-        print(f"❌ خطا در نوشتن README: {e}")
-    
-    # --- ساخت گزارش JSON ---
+            f.write(readme_content)
+        print(f"✅ گزارش README در {README_FILE} ذخیره شد")
+    except IOError as e:
+        print(f"❌ خطا در ذخیره README: {e}")
+
+def generate_json_report(top_gainers, top_losers, all_changes, timestamp):
+    """تولید گزارش JSON کامل"""
     report = {
-        "metadata": {
-            "timestamp": timestamp,
-            "source": "Bitbarg API",
-            "total_coins": len(all_changes)
-        },
+        "timestamp": timestamp,
         "top_gainers": top_gainers,
         "top_losers": top_losers,
         "all_changes": all_changes
     }
-    
     try:
-        with open("market_report.json", "w", encoding="utf-8") as f:
+        with open(REPORT_FILE, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2, ensure_ascii=False)
-        print("📄 فایل market_report.json با موفقیت ذخیره شد")
-    except Exception as e:
-        print(f"❌ خطا در نوشتن JSON: {e}")
+        print(f"✅ گزارش JSON در {REPORT_FILE} ذخیره شد")
+    except IOError as e:
+        print(f"❌ خطا در ذخیره JSON: {e}")
 
 def main():
-    print("="*50)
-    print("🚀 شروع فرآیند واکشی و تحلیل قیمت‌ها")
-    print("="*50)
+    print("🚀 شروع فرآیند واکشی و تحلیل داده‌ها...")
     
-    # ۱. دریافت قیمت‌های فعلی
+    # 1. واکشی قیمت‌های فعلی
     current_prices = fetch_all_prices()
-    
     if not current_prices:
-        print("❌ هیچ قیمتی دریافت نشد - در حال تولید گزارش خطا...")
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        generate_files([], [], {}, timestamp)
+        print("❌ هیچ داده‌ای دریافت نشد. عملیات متوقف شد.")
+        # حتی در صورت خطا، فایل‌های خالی ایجاد کن
+        generate_readme([], [], {}, datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+        generate_json_report([], [], {}, datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
         sys.exit(1)
     
-    # ۲. بارگذاری تاریخچه
+    print(f"✅ مجموعاً {len(current_prices)} ارز دریافت شد")
+    
+    # 2. بارگذاری تاریخچه
     history = load_history()
     previous_prices = history[-1]["items"] if history else []
     
-    # ۳. محاسبه تغییرات
+    if previous_prices:
+        print(f"📚 تاریخچه موجود: {len(history)} وضعیت قبلی")
+    else:
+        print("📚 تاریخچه‌ای یافت نشد - این اولین اجراست")
+    
+    # 3. محاسبه تغییرات
     all_changes = calculate_changes(current_prices, previous_prices)
     
     if not all_changes:
         print("❌ هیچ تغییری محاسبه نشد")
         sys.exit(1)
     
-    # ۴. یافتن برترین‌ها
+    # 4. یافتن برترین‌ها
     sorted_items = sorted(all_changes.values(), key=lambda x: x["change_percent"], reverse=True)
     top_gainers = sorted_items[:TOP_N]
     top_losers = sorted_items[-TOP_N:]
     top_losers.reverse()
     
-    print("\n" + "="*50)
-    print("📊 نتایج تحلیل:")
-    print(f"🔥 برترین رشدها: {', '.join([f'{c[\"name\"]}({c[\"change_percent\"]:+.2f}%)' for c in top_gainers])}")
-    print(f"❄️ برترین افت‌ها: {', '.join([f'{c[\"name\"]}({c[\"change_percent\"]:+.2f}%)' for c in top_losers])}")
-    print("="*50 + "\n")
+    print(f"🔥 ۵ ارز برتر در رشد: {', '.join([c['name'] for c in top_gainers])}")
+    print(f"❄️ ۵ ارز برتر در افت: {', '.join([c['name'] for c in top_losers])}")
     
-    # ۵. به‌روزرسانی تاریخچه
+    # 5. به‌روزرسانی تاریخچه
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     history.append({
         "timestamp": timestamp,
         "items": current_prices
     })
     
-    # محدود کردن تاریخچه به ۱۰۰ وضعیت
+    # محدود کردن تاریخچه
     if len(history) > 100:
         history = history[-100:]
         print("📝 تاریخچه به ۱۰۰ وضعیت آخر محدود شد")
     
     save_history(history)
     
-    # ۶. تولید گزارش‌ها
-    generate_files(top_gainers, top_losers, all_changes, timestamp)
+    # 6. تولید گزارش‌ها
+    generate_readme(top_gainers, top_losers, all_changes, timestamp)
+    generate_json_report(top_gainers, top_losers, all_changes, timestamp)
     
-    print("\n" + "="*50)
     print("✅ عملیات با موفقیت به پایان رسید!")
-    print("="*50)
 
 if __name__ == "__main__":
     main()
