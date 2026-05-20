@@ -38,8 +38,8 @@ jobs:
 
       - name: 💾 ثبت تغییرات در مخزن
         run: |
-          git config --local user.email "imankhani3040@gmail.com"
-          git config --local user.name "redline-crypto"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
           git add price_history.json README.md market_report.json 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "📝 تغییری برای commit وجود ندارد"
