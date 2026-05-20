@@ -2,14 +2,14 @@ name: 🕵️ Market Monitor
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 */6 * * *'  # هر ۶ ساعت یکبار
   workflow_dispatch:
 
 jobs:
   fetch-and-analyze:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # این خط برای push کردن ضروری است
+      contents: write
     timeout-minutes: 10
 
     steps:
@@ -24,22 +24,32 @@ jobs:
           python-version: '3.11'
 
       - name: 📦 نصب نیازمندی‌ها
-        run: pip install requests
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
       - name: 🔍 اجرای تحلیل
         id: analysis
         run: python fetch_and_analyze.py
 
       - name: 💾 ذخیره تغییرات
-        if: always()  # حتی اگر اسکریپت خطا بدهد، تلاش می‌کند فایل‌ها را push کند
+        if: always()
         run: |
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
+          
+          # نمایش وضعیت فایل‌ها برای دیباگ
+          echo "📂 فایل‌های موجود:"
+          ls -la *.md *.json 2>/dev/null || echo "هنوز فایلی ایجاد نشده"
+          
           git add README.md market_report.json price_history.json 2>/dev/null || true
+          
           if git diff --staged --quiet; then
             echo "📝 هیچ تغییری برای commit وجود ندارد"
           else
-            git commit -m "به‌روزرسانی خودکار گزارش - $(date +'%Y-%m-%d %H:%M')"
+            echo "📝 تغییرات شناسایی شده:"
+            git diff --staged --stat
+            git commit -m "به‌روزرسانی خودکار گزارش بازار - $(date +'%Y-%m-%d %H:%M')"
             git push
             echo "✅ تغییرات با موفقیت push شد"
           fi
