@@ -109,7 +109,7 @@ def generate_readme(top_gainers, top_losers, all_changes, timestamp):
     """تولید فایل README.md با فرمت Markdown صحیح"""
     
     lines = []
-    lines.append("# 📊 Bitbarg Market Monitor (گزارش زنده)")
+    lines.append("# 📊 Bitbarg Market Monitor (گزارش  زنده هر ۵ دقیقه)")
     lines.append("")
     lines.append(f"**🕒 آخرین به‌روزرسانی:** `{timestamp}`")
     lines.append(f"**📈 تعداد ارزهای ردیابی‌شده:** `{len(all_changes)}`")
