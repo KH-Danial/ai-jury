@@ -13,7 +13,7 @@ jobs:
   fetch-and-analyze:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # برای push کردن تغییرات به مخزن
+      contents: write
     timeout-minutes: 10
 
     steps:
@@ -40,7 +40,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add price_history.json README.md market_report.json latest.json index.html 2>/dev/null || true
+          git add price_history.json README.md market_report.json latest.json index.html debug.log 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "📝 تغییری برای commit وجود ندارد"
           else
