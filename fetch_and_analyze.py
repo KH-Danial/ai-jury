@@ -13,25 +13,9 @@ README_FILE = "README.md"
 REPORT_FILE = "market_report.json"
 LATEST_FILE = "latest.json"
 DASHBOARD_FILE = "index.html"
-DEBUG_LOG = "debug.log"
 TOP_N = 5
 VOLATILITY_THRESHOLD = 2.0
-MAX_RETRIES = 3  # تعداد تلاش‌های مجدد برای دریافت هر صفحه
-
-# --- هدایت print به فایل لاگ ---
-class Tee:
-    def __init__(self, *files):
-        self.files = files
-    def write(self, text):
-        for f in self.files:
-            f.write(text)
-    def flush(self):
-        for f in self.files:
-            f.flush()
-
-log_file = open(DEBUG_LOG, "w", encoding="utf-8")
-sys.stdout = Tee(sys.stdout, log_file)
-sys.stderr = Tee(sys.stderr, log_file)
+MAX_RETRIES = 3
 
 def get_price(item):
     for field in ["currency_price", "quote", "price"]:
@@ -41,7 +25,6 @@ def get_price(item):
     return 0.0
 
 def fetch_page_with_retry(page):
-    """دریافت یک صفحه با قابلیت تلاش مجدد"""
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             print(f"📥 دریافت صفحه {page} (تلاش {attempt}/{MAX_RETRIES})...")
@@ -77,7 +60,6 @@ def fetch_page_with_retry(page):
     return None
 
 def fetch_all_prices():
-    """دریافت تمام قیمت‌ها با مدیریت خطا و تلاش مجدد"""
     all_items = []
     page = 1
     while True:
@@ -273,7 +255,6 @@ def main():
         write_json_files([], [], [], {}, timestamp)
         write_dashboard()
         print("⚠️ به دلیل عدم دریافت داده، فایل‌ها با محتوای خطا ساخته شدند.")
-        log_file.close()
         sys.exit(1)
 
     history = load_history()
@@ -284,7 +265,6 @@ def main():
         write_readme([], [], [], {}, timestamp)
         write_json_files([], [], [], {}, timestamp)
         write_dashboard()
-        log_file.close()
         sys.exit(1)
 
     sorted_items = sorted(changes.values(), key=lambda x: x["change_percent"], reverse=True)
@@ -307,7 +287,6 @@ def main():
     write_dashboard()
 
     print("✅ پایان موفق")
-    log_file.close()
 
 if __name__ == "__main__":
     main()
