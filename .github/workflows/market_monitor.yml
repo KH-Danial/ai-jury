@@ -2,12 +2,12 @@ name: 🕵️ Market Monitor
 
 on:
   schedule:
-    - cron: '*/5 * * * *'   # اجرا هر ۵ دقیقه
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 concurrency:
   group: market-monitor
-  cancel-in-progress: false   # اگر اجرای قبلی تمام نشده، صبر کند
+  cancel-in-progress: false
 
 jobs:
   fetch-and-analyze:
@@ -40,11 +40,11 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add price_history.json README.md market_report.json 2>/dev/null || true
+          git add price_history.json README.md market_report.json latest.json index.html 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "📝 تغییری برای commit وجود ندارد"
           else
-            git commit -m "به‌روزرسانی خودکار گزارش بازار - $(date +'%Y-%m-%d %H:%M')"
+            git commit -m "به‌روزرسانی خودکار بازار - $(date +'%Y-%m-%d %H:%M')"
             git push
-            echo "✅ تغییرات با موفقیت push شد"
+            echo "✅ تغییرات push شد"
           fi
