@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>داشبورد بازار Bitbarg</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body { font-family: Tahoma; max-width: 900px; margin: auto; padding: 20px; background: #f5f5f5; }
+        h1 { color: #333; }
+        .chart-container { background: white; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; border-bottom: 1px solid #ddd; }
+        th { background: #4CAF50; color: white; }
+        .up { color: green; } .down { color: red; }
+    </style>
+</head>
+<body>
+    <h1>📊 داشبورد زنده بازار Bitbarg</h1>
+    <p>🕒 <span id="ts"></span></p>
+    <div class="chart-container"><h2>📈 ۱۰ ارز با بیشترین تغییر</h2><canvas id="chart"></canvas></div>
+    <div class="chart-container"><h2>⚡ نوسان‌های بالا</h2><table id="voltbl"><thead><tr><th>ارز</th><th>قیمت</th><th>تغییر</th></tr></thead><tbody></tbody></table></div>
+    <script>
+        fetch('latest.json').then(r=>r.json()).then(d=>{
+            document.getElementById('ts').textContent = d.timestamp;
+            const all = Object.values(d.all).sort((a,b)=>Math.abs(b.change_percent)-Math.abs(a.change_percent)).slice(0,10);
+            new Chart(document.getElementById('chart'),{
+                type:'bar', data:{ labels: all.map(c=>c.name), datasets:[{ label:'% تغییر', data: all.map(c=>c.change_percent), backgroundColor: all.map(v=>v.change_percent>=0?'rgba(75,192,192,0.7)':'rgba(255,99,132,0.7)') }] },
+                options:{ responsive:true, scales:{ y:{ beginAtZero:true } } }
+            });
+            d.volatile.forEach(c=>{ let tr=document.createElement('tr'); tr.innerHTML=`<td>${c.name}</td><td>${c.current_price.toFixed(2)}</td><td class="${c.change_percent>=0?'up':'down'}">%${c.change_percent.toFixed(2)}</td>`; document.querySelector('#voltbl tbody').appendChild(tr); });
+        });
+    </script>
+</body>
+</html>
